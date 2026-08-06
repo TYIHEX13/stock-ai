@@ -1,5 +1,6 @@
 import streamlit as st
 import yfinance as yf
+import pandas as pd
 from datetime import datetime
 
 st.set_page_config(page_title="免费多周期分析", layout="wide")
@@ -28,15 +29,18 @@ for i, (name, interval) in enumerate(timeframes.items()):
                 st.warning(f"{name} 暂时没有数据")
                 continue
 
+            # 处理多级列名
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+
             st.subheader(f"{symbol} · {name}")
             st.caption(f"最新时间：{df.index[-1]}")
 
             last_close = float(df["Close"].iloc[-1])
             st.metric("最新收盘价", f"{last_close:.2f}")
 
-            # 简单信号
             if len(df) >= 20:
-                ma20 = df["Close"].rolling(20).mean().iloc[-1]
+                ma20 = float(df["Close"].rolling(20).mean().iloc[-1])
                 if last_close > ma20:
                     signal = "偏多（价格在均线上方）"
                 else:
