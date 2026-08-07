@@ -84,17 +84,12 @@ for i, (name, interval) in enumerate(timeframes.items()):
                 std = close.rolling(20).std()
                 upper = mid + 2 * std
                 lower = mid - 2 * std
-                upper_val = float(upper.iloc[-1])
-                lower_val = float(lower.iloc[-1])
-                if last_close > upper_val:
+                if last_close > float(upper.iloc[-1]):
                     bb_status = "触及上轨（超买）"
-                elif last_close < lower_val:
+                elif last_close < float(lower.iloc[-1]):
                     bb_status = "触及下轨（超卖）"
-                else:
-                    bb_status = "中轨附近"
 
-            # 综合信号
-            signal = "观望"
+            # 综合信号评分
             score = 0
             if len(close) >= 20:
                 ma20_val = float(ma20.iloc[-1])
@@ -116,6 +111,7 @@ for i, (name, interval) in enumerate(timeframes.items()):
             elif "超买" in bb_status:
                 score -= 1
 
+            signal = "观望"
             if score >= 2:
                 signal = "偏多"
                 bull_count += 1
@@ -136,14 +132,14 @@ for i, (name, interval) in enumerate(timeframes.items()):
             st.caption(f"最新时间：{df.index[-1]}")
             st.metric("最新价格", f"{last_close:.2f}")
 
-            col1, col2, col3 = st.columns(3)
-            with col1:
+            c1, c2, c3 = st.columns(3)
+            with c1:
                 st.write(f"**信号**：{signal}")
                 st.write(f"**趋势**：{trend}")
-            with col2:
+            with c2:
                 st.write(f"**RSI**：{rsi_value:.1f}" if rsi_value else "**RSI**：-")
                 st.write(f"**MACD**：{macd_signal}")
-            with col3:
+            with c3:
                 st.write(f"**布林带**：{bb_status}")
 
             st.line_chart(close)
@@ -151,7 +147,7 @@ for i, (name, interval) in enumerate(timeframes.items()):
         except Exception as e:
             st.error(f"{name} 出错：{e}")
 
-# 共振与建议
+# 共振汇总
 st.divider()
 st.subheader("多周期共振与操作建议")
 
