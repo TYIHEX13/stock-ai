@@ -6,7 +6,6 @@ from datetime import datetime
 st.set_page_config(page_title="多品种多周期分析", layout="wide")
 st.title("多品种多时间周期分析")
 
-# 品种选择
 symbol_options = {
     "现货黄金 (XAUUSD)": "GC=F",
     "黄金期货 (GC=F)": "GC=F",
@@ -43,7 +42,6 @@ for i, (name, interval) in enumerate(timeframes.items()):
     with tabs[i]:
         try:
             df = yf.download(symbol, period=period, interval=interval, progress=False)
-            
             if df.empty:
                 st.warning(f"{name} 暂时没有数据")
                 continue
@@ -53,10 +51,12 @@ for i, (name, interval) in enumerate(timeframes.items()):
 
             close = df["Close"]
             last_close = float(close.iloc[-1])
-            
+
+            # 均线
             ma20 = close.rolling(20).mean()
             ma60 = close.rolling(60).mean() if len(close) >= 60 else None
-            
+
+            # RSI
             rsi_value = None
             if len(close) >= 15:
                 delta = close.diff()
@@ -66,16 +66,47 @@ for i, (name, interval) in enumerate(timeframes.items()):
                 rsi = 100 - (100 / (1 + rs))
                 rsi_value = float(rsi.iloc[-1])
 
+            # MACD
+            macd_signal = "无"
+            if len(close) >= 26:
+                exp12 = close.ewm(span=12, adjust=False).mean()
+                exp26 = close.ewm(span=26, adjust=False).mean()
+                macd_line = exp12 - exp26
+                signal_line = macd_line.ewm(span=9, adjust=False).mean()
+                macd_val = float(macd_line.iloc[-1])
+                signal_val = float(signal_line.iloc[-1])
+                if macd_val > signal_val:
+                    macd_signal = "多头"
+                else:
+                    macd_signal = "空头"
+
+            # 综合信号
             signal = "观望"
+            score = 0
             if len(close) >= 20:
                 ma20_val = float(ma20.iloc[-1])
                 if last_close > ma20_val:
-                    signal = "偏多"
-                    bull_count += 1
+                    score += 1
                 else:
-                    signal = "偏空"
-                    bear_count += 1
+                    score -= 1
+            if rsi_value is not None:
+                if rsi_value < 30:
+                    score += 1
+                elif rsi_value > 70:
+                    score -= 1
+            if macd_signal == "多头":
+                score += 1
+            elif macd_signal == "空头":
+                score -= 1
 
+            if score >= 2:
+                signal = "偏多"
+                bull_count += 1
+            elif score <= -2:
+                signal = "偏空"
+                bear_count += 1
+
+            # 趋势
             trend = "震荡"
             if ma60 is not None:
                 ma60_val = float(ma60.iloc[-1])
@@ -88,13 +119,14 @@ for i, (name, interval) in enumerate(timeframes.items()):
             st.caption(f"最新时间：{df.index[-1]}")
             st.metric("最新价格", f"{last_close:.2f}")
 
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4 = st.columns(4)
             with col1:
                 st.write(f"**信号**：{signal}")
             with col2:
-                if rsi_value is not None:
-                    st.write(f"**RSI**：{rsi_value:.1f}")
+                st.write(f"**RSI**：{rsi_value:.1f}" if rsi_value else "**RSI**：-")
             with col3:
+                st.write(f"**MACD**：{macd_signal}")
+            with col4:
                 st.write(f"**趋势**：{trend}")
 
             st.line_chart(close)
@@ -102,7 +134,7 @@ for i, (name, interval) in enumerate(timeframes.items()):
         except Exception as e:
             st.error(f"{name} 出错：{e}")
 
-# ========== 加强版共振与操作建议 ==========
+# 共振与建议
 st.divider()
 st.subheader("多周期共振与操作建议")
 
@@ -112,22 +144,17 @@ with col_a:
 with col_b:
     st.metric("看空周期数", bear_count)
 
-total = bull_count + bear_count
-
 if bull_count >= 6:
-    st.success("【强共振偏多】多数周期看多，可考虑偏多方向")
-    st.write("操作建议：优先关注做多机会，回调支撑可轻仓尝试")
+    st.success("【强共振偏多】可关注做多机会")
+    st.write("建议：回调支撑轻仓尝试，严格止损")
 elif bear_count >= 6:
-    st.error("【强共振偏空】多数周期看空，可考虑偏空方向")
-    st.write("操作建议：优先关注做空机会，反弹阻力可轻仓尝试")
+    st.error("【强共振偏空】可关注做空机会")
+    st.write("建议：反弹阻力轻仓尝试，严格止损")
 elif bull_count >= 4:
-    st.info("【偏多共振】多头稍占优")
-    st.write("操作建议：可谨慎看多，但需控制仓位")
+    st.info("【偏多共振】谨慎看多")
 elif bear_count >= 4:
-    st.info("【偏空共振】空头稍占优")
-    st.write("操作建议：可谨慎看空，但需控制仓位")
+    st.info("【偏空共振】谨慎看空")
 else:
-    st.warning("【信号分歧】多空力量接近")
-    st.write("操作建议：建议观望，等待更明确方向")
+    st.warning("【信号分歧】建议观望")
 
 st.caption(f"更新时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | 免费数据，仅供参考，不构成投资建议")
