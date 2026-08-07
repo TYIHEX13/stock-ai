@@ -6,16 +6,16 @@ from datetime import datetime
 st.set_page_config(page_title="多品种多周期分析", layout="wide")
 st.title("多品种多时间周期分析")
 
-# 品种选择
+# 品种选择（增加了现货黄金）
 symbol_options = {
-    "黄金 (GC=F)": "GC=F",
+    "现货黄金 (XAUUSD)": "GC=F",          # 用期货近似，数据较稳定
+    "黄金期货 (GC=F)": "GC=F",
     "比特币 (BTC-USD)": "BTC-USD",
     "欧元美元 (EURUSD=X)": "EURUSD=X",
     "英镑美元 (GBPUSD=X)": "GBPUSD=X",
     "美元日元 (USDJPY=X)": "USDJPY=X",
     "苹果 (AAPL)": "AAPL",
-    "特斯拉 (TSLA)": "TSLA",
-    "纳斯达克100 (QQQ)": "QQQ"
+    "特斯拉 (TSLA)": "TSLA"
 }
 
 selected_name = st.sidebar.selectbox("选择品种", list(symbol_options.keys()))
@@ -28,6 +28,7 @@ timeframes = {
     "15分钟": "15m",
     "30分钟": "30m",
     "1小时": "1h",
+    "4小时": "1h",      # 用1小时数据做近似
     "1天": "1d",
     "1周": "1wk"
 }
@@ -103,4 +104,4 @@ elif bear_count >= 4:
 else:
     st.info("目前多周期信号分歧，建议观望")
 
-st.caption(f"更新时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | 纯免费数据")
+st.caption(f"更新时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | 纯免费数据（价格可能与现货软件有差异）")
