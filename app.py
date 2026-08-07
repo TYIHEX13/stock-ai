@@ -22,7 +22,6 @@ selected_name = st.sidebar.selectbox("选择品种", list(symbol_options.keys())
 symbol = symbol_options[selected_name]
 period = st.sidebar.selectbox("历史长度", ["5d", "1mo", "3mo"], index=1)
 
-# 完整时间周期（已加入3小时、6小时）
 timeframes = {
     "5分钟": "5m",
     "15分钟": "15m",
@@ -55,7 +54,6 @@ for i, (name, interval) in enumerate(timeframes.items()):
             close = df["Close"]
             last_close = float(close.iloc[-1])
             
-            # 指标计算
             ma20 = close.rolling(20).mean()
             ma60 = close.rolling(60).mean() if len(close) >= 60 else None
             
@@ -68,7 +66,6 @@ for i, (name, interval) in enumerate(timeframes.items()):
                 rsi = 100 - (100 / (1 + rs))
                 rsi_value = float(rsi.iloc[-1])
 
-            # 信号
             signal = "观望"
             if len(close) >= 20:
                 ma20_val = float(ma20.iloc[-1])
@@ -79,7 +76,6 @@ for i, (name, interval) in enumerate(timeframes.items()):
                     signal = "偏空"
                     bear_count += 1
 
-            # 趋势判断
             trend = "震荡"
             if ma60 is not None:
                 ma60_val = float(ma60.iloc[-1])
@@ -106,9 +102,9 @@ for i, (name, interval) in enumerate(timeframes.items()):
         except Exception as e:
             st.error(f"{name} 出错：{e}")
 
-# 多周期共振汇总
+# ========== 加强版共振与操作建议 ==========
 st.divider()
-st.subheader("多周期共振汇总")
+st.subheader("多周期共振与操作建议")
 
 col_a, col_b = st.columns(2)
 with col_a:
@@ -116,15 +112,22 @@ with col_a:
 with col_b:
     st.metric("看空周期数", bear_count)
 
-if bull_count >= 6:
-    st.success("强共振偏多")
-elif bear_count >= 6:
-    st.error("强共振偏空")
-elif bull_count >= 4:
-    st.info("偏多共振")
-elif bear_count >= 4:
-    st.info("偏空共振")
-else:
-    st.warning("信号分歧，建议观望")
+total = bull_count + bear_count
 
-st.caption(f"更新时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | 免费数据，价格仅供参考")
+if bull_count >= 6:
+    st.success("【强共振偏多】多数周期看多，可考虑偏多方向")
+    st.write("操作建议：优先关注做多机会，回调支撑可轻仓尝试")
+elif bear_count >= 6:
+    st.error("【强共振偏空】多数周期看空，可考虑偏空方向")
+    st.write("操作建议：优先关注做空机会，反弹阻力可轻仓尝试")
+elif bull_count >= 4:
+    st.info("【偏多共振】多头稍占优")
+    st.write("操作建议：可谨慎看多，但需控制仓位")
+elif bear_count >= 4:
+    st.info("【偏空共振】空头稍占优")
+    st.write("操作建议：可谨慎看空，但需控制仓位")
+else:
+    st.warning("【信号分歧】多空力量接近")
+    st.write("操作建议：建议观望，等待更明确方向")
+
+st.caption(f"更新时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | 免费数据，仅供参考，不构成投资建议")
