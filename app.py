@@ -38,6 +38,12 @@ timeframes = {
 
 bull_count = 0
 bear_count = 0
+last_price = 0
+last_signal = "观望"
+last_trend = "震荡"
+last_rsi = None
+last_macd = "无"
+last_bb = "中轨附近"
 
 tabs = st.tabs(list(timeframes.keys()))
 
@@ -54,6 +60,7 @@ for i, (name, interval) in enumerate(timeframes.items()):
 
             close = df["Close"]
             last_close = float(close.iloc[-1])
+            last_price = last_close
 
             ma20 = close.rolling(20).mean()
             ma60 = close.rolling(60).mean() if len(close) >= 60 else None
@@ -66,6 +73,7 @@ for i, (name, interval) in enumerate(timeframes.items()):
                 rs = gain / loss
                 rsi = 100 - (100 / (1 + rs))
                 rsi_value = float(rsi.iloc[-1])
+                last_rsi = rsi_value
 
             macd_signal = "无"
             if len(close) >= 26:
@@ -76,6 +84,7 @@ for i, (name, interval) in enumerate(timeframes.items()):
                 macd_val = float(macd_line.iloc[-1])
                 signal_val = float(signal_line.iloc[-1])
                 macd_signal = "多头" if macd_val > signal_val else "空头"
+                last_macd = macd_signal
 
             bb_status = "中轨附近"
             if len(close) >= 20:
@@ -87,6 +96,7 @@ for i, (name, interval) in enumerate(timeframes.items()):
                     bb_status = "触及上轨（超买）"
                 elif last_close < float(lower.iloc[-1]):
                     bb_status = "触及下轨（超卖）"
+                last_bb = bb_status
 
             score = 0
             if len(close) >= 20:
@@ -108,6 +118,7 @@ for i, (name, interval) in enumerate(timeframes.items()):
             elif score <= -2:
                 signal = "偏空"
                 bear_count += 1
+            last_signal = signal
 
             trend = "震荡"
             if ma60 is not None:
@@ -116,6 +127,7 @@ for i, (name, interval) in enumerate(timeframes.items()):
                     trend = "多头趋势"
                 elif last_close < ma20_val < ma60_val:
                     trend = "空头趋势"
+            last_trend = trend
 
             st.subheader(f"{selected_name} · {name}")
             st.caption(f"最新时间：{df.index[-1]}")
@@ -136,9 +148,10 @@ for i, (name, interval) in enumerate(timeframes.items()):
         except Exception as e:
             st.error(f"{name} 出错：{e}")
 
-# 共振
+# 共振与解释
 st.divider()
-st.subheader("多周期共振与操作建议")
+st.subheader("多周期共振与详细解释")
+
 col_a, col_b = st.columns(2)
 with col_a:
     st.metric("看多周期数", bull_count)
@@ -146,28 +159,60 @@ with col_b:
     st.metric("看空周期数", bear_count)
 
 if bull_count >= 6:
-    st.success("【强共振偏多】可关注做多机会")
+    st.success("【强共振偏多】")
+    st.write("**为什么偏多：** 多数时间周期价格在均线上方，MACD和RSI也偏向多头，多周期形成共振。")
+    st.write("**操作建议：** 可关注做多机会，但建议等回调到支撑位再轻仓，并设置止损。")
 elif bear_count >= 6:
-    st.error("【强共振偏空】可关注做空机会")
+    st.error("【强共振偏空】")
+    st.write("**为什么偏空：** 多数时间周期价格在均线下方，MACD和RSI偏向空头，空头力量占优。")
+    st.write("**操作建议：** 可关注做空机会，建议等反弹到阻力位再轻仓，并设置止损。")
 elif bull_count >= 4:
-    st.info("【偏多共振】谨慎看多")
+    st.info("【偏多共振】")
+    st.write("**为什么谨慎看多：** 多头稍占优，但并非压倒性优势，存在分歧。")
+    st.write("**不建议重仓原因：** 信号还不够强，容易假突破。")
 elif bear_count >= 4:
-    st.info("【偏空共振】谨慎看空")
+    st.info("【偏空共振】")
+    st.write("**为什么谨慎看空：** 空头稍占优，但多周期尚未完全一致。")
+    st.write("**不建议重仓原因：** 反弹风险仍在。")
 else:
-    st.warning("【信号分歧】建议观望")
+    st.warning("【信号分歧】")
+    st.write("**为什么建议观望：** 多空力量接近，没有明确方向优势。")
+    st.write("**不建议现在下单原因：** 容易来回打脸，胜率较低。")
+
+# AI 辅助分析
+st.divider()
+st.subheader("AI 分析辅助（复制发给其他AI）")
+
+ai_prompt = f"""
+请根据以下技术分析数据，给出你的看法：
+品种：{selected_name}
+最新价格：{last_price}
+整体信号：{last_signal}
+趋势：{last_trend}
+RSI：{last_rsi}
+MACD：{last_macd}
+布林带：{last_bb}
+看多周期数：{bull_count}
+看空周期数：{bear_count}
+
+请分析：
+1. 当前更偏向做多还是做空？为什么？
+2. 是否适合现在下单？理由是什么？
+3. 如果操作，建议怎样设置止损和目标？
+4. 有哪些风险需要注意？
+"""
+
+st.code(ai_prompt, language="text")
+st.caption("复制上面这段文字，发给 DeepSeek、ChatGPT、Claude 等AI，让它们一起帮你分析。")
 
 # 重要数据提醒
 st.divider()
 st.subheader("重要数据提醒（仅供参考）")
 st.write("""
-**常见重要数据（需自行确认准确时间）：**
 - 非农就业报告（NFP）：通常每月第一个周五
 - CPI（通胀数据）：每月中旬
 - 美联储利率决议：不定期
-- GDP、初请失业金等
-
-**提示：** 数据公布前后波动可能加大，建议谨慎操作或观望。
-免费工具无法准确预测数据结果和影响方向。
+- 数据公布前后波动可能加大，建议谨慎或观望
 """)
 
 # 模拟盘
@@ -193,25 +238,4 @@ with st.form("trade_form"):
             else:
                 profit = entry_price - exit_price
         st.session_state.trades.append({
-            "时间": datetime.now().strftime("%m-%d %H:%M"),
-            "品种": selected_name,
-            "方向": direction,
-            "开仓价": entry_price,
-            "平仓价": exit_price if exit_price > 0 else "持仓中",
-            "盈亏": round(profit, 2) if exit_price > 0 else "-",
-            "备注": note
-        })
-        st.success("已添加记录")
-
-if st.session_state.trades:
-    st.dataframe(pd.DataFrame(st.session_state.trades))
-    closed = [t for t in st.session_state.trades if t["盈亏"] != "-"]
-    if closed:
-        total_profit = sum([t["盈亏"] for t in closed])
-        win = len([t for t in closed if t["盈亏"] > 0])
-        st.metric("总盈亏", f"{total_profit:.2f}")
-        st.write(f"已平仓：{len(closed)} 次，盈利：{win} 次")
-else:
-    st.info("暂无模拟交易记录")
-
-st.caption(f"更新时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | 免费数据，仅供参考，不构成投资建议")
+            "时间": datetim
