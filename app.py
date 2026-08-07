@@ -147,7 +147,6 @@ for i, (name, interval) in enumerate(timeframes.items()):
 
         except Exception as e:
             st.error(f"{name} 出错：{e}")
-
 # 共振与解释
 st.divider()
 st.subheader("多周期共振与详细解释")
@@ -238,4 +237,25 @@ with st.form("trade_form"):
             else:
                 profit = entry_price - exit_price
         st.session_state.trades.append({
-            "时间": datetim
+            "时间": datetime.now().strftime("%m-%d %H:%M"),
+            "品种": selected_name,
+            "方向": direction,
+            "开仓价": entry_price,
+            "平仓价": exit_price if exit_price > 0 else "持仓中",
+            "盈亏": round(profit, 2) if exit_price > 0 else "-",
+            "备注": note
+        })
+        st.success("已添加记录")
+
+if st.session_state.trades:
+    st.dataframe(pd.DataFrame(st.session_state.trades))
+    closed = [t for t in st.session_state.trades if t["盈亏"] != "-"]
+    if closed:
+        total_profit = sum([t["盈亏"] for t in closed])
+        win = len([t for t in closed if t["盈亏"] > 0])
+        st.metric("总盈亏", f"{total_profit:.2f}")
+        st.write(f"已平仓：{len(closed)} 次，盈利：{win} 次")
+else:
+    st.info("暂无模拟交易记录")
+
+st.caption(f"更新时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | 免费数据，仅供参考，不构成投资建议")
