@@ -4,7 +4,11 @@ import pandas as pd
 from datetime import datetime
 
 st.set_page_config(page_title="多品种多周期分析", layout="wide")
-st.title("多品种多时间周期分析")
+st.title("多品种多时间周期分析 + 模拟盘")
+
+# 初始化模拟盘记录
+if "trades" not in st.session_state:
+    st.session_state.trades = []
 
 symbol_options = {
     "现货黄金 (XAUUSD)": "GC=F",
@@ -52,11 +56,9 @@ for i, (name, interval) in enumerate(timeframes.items()):
             close = df["Close"]
             last_close = float(close.iloc[-1])
 
-            # 均线
             ma20 = close.rolling(20).mean()
             ma60 = close.rolling(60).mean() if len(close) >= 60 else None
 
-            # RSI
             rsi_value = None
             if len(close) >= 15:
                 delta = close.diff()
@@ -66,7 +68,6 @@ for i, (name, interval) in enumerate(timeframes.items()):
                 rsi = 100 - (100 / (1 + rs))
                 rsi_value = float(rsi.iloc[-1])
 
-            # MACD
             macd_signal = "无"
             if len(close) >= 26:
                 exp12 = close.ewm(span=12, adjust=False).mean()
@@ -77,7 +78,6 @@ for i, (name, interval) in enumerate(timeframes.items()):
                 signal_val = float(signal_line.iloc[-1])
                 macd_signal = "多头" if macd_val > signal_val else "空头"
 
-            # 布林带
             bb_status = "中轨附近"
             if len(close) >= 20:
                 mid = close.rolling(20).mean()
@@ -89,7 +89,6 @@ for i, (name, interval) in enumerate(timeframes.items()):
                 elif last_close < float(lower.iloc[-1]):
                     bb_status = "触及下轨（超卖）"
 
-            # 综合信号评分
             score = 0
             if len(close) >= 20:
                 ma20_val = float(ma20.iloc[-1])
@@ -119,7 +118,6 @@ for i, (name, interval) in enumerate(timeframes.items()):
                 signal = "偏空"
                 bear_count += 1
 
-            # 趋势
             trend = "震荡"
             if ma60 is not None:
                 ma60_val = float(ma60.iloc[-1])
@@ -159,10 +157,8 @@ with col_b:
 
 if bull_count >= 6:
     st.success("【强共振偏多】可关注做多机会")
-    st.write("建议：回调支撑轻仓尝试，严格止损")
 elif bear_count >= 6:
     st.error("【强共振偏空】可关注做空机会")
-    st.write("建议：反弹阻力轻仓尝试，严格止损")
 elif bull_count >= 4:
     st.info("【偏多共振】谨慎看多")
 elif bear_count >= 4:
@@ -170,4 +166,52 @@ elif bear_count >= 4:
 else:
     st.warning("【信号分歧】建议观望")
 
-st.caption(f"更新时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | 免费数据，仅供参考，不构成投资建议")
+# ========== 模拟盘 ==========
+st.divider()
+st.subheader("模拟盘记录")
+
+with st.form("trade_form"):
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        direction = st.selectbox("方向", ["做多", "做空"])
+    with col2:
+        entry_price = st.number_input("开仓价格", min_value=0.0, value=0.0, step=0.1)
+    with col3:
+        exit_price = st.number_input("平仓价格（没平仓填0）", min_value=0.0, value=0.0, step=0.1)
+    
+    note = st.text_input("备注（可选）")
+    submitted = st.form_submit_button("添加记录")
+
+    if submitted and entry_price > 0:
+        profit = 0
+        if exit_price > 0:
+            if direction == "做多":
+                profit = exit_price - entry_price
+            else:
+                profit = entry_price - exit_price
+        
+        st.session_state.trades.append({
+            "时间": datetime.now().strftime("%m-%d %H:%M"),
+            "品种": selected_name,
+            "方向": direction,
+            "开仓价": entry_price,
+            "平仓价": exit_price if exit_price > 0 else "持仓中",
+            "盈亏": round(profit, 2) if exit_price > 0 else "-",
+            "备注": note
+        })
+        st.success("已添加记录")
+
+if st.session_state.trades:
+    st.write("历史记录：")
+    st.dataframe(pd.DataFrame(st.session_state.trades))
+    
+    closed = [t for t in st.session_state.trades if t["盈亏"] != "-"]
+    if closed:
+        total_profit = sum([t["盈亏"] for t in closed])
+        win = len([t for t in closed if t["盈亏"] > 0])
+        st.metric("总盈亏", f"{total_profit:.2f}")
+        st.write(f"已平仓次数：{len(closed)}，盈利次数：{win}")
+else:
+    st.info("暂无模拟交易记录")
+
+st.caption(f"更新时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | 免费数据，仅供参考")
