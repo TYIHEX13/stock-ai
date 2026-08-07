@@ -75,10 +75,23 @@ for i, (name, interval) in enumerate(timeframes.items()):
                 signal_line = macd_line.ewm(span=9, adjust=False).mean()
                 macd_val = float(macd_line.iloc[-1])
                 signal_val = float(signal_line.iloc[-1])
-                if macd_val > signal_val:
-                    macd_signal = "多头"
+                macd_signal = "多头" if macd_val > signal_val else "空头"
+
+            # 布林带
+            bb_status = "中轨附近"
+            if len(close) >= 20:
+                mid = close.rolling(20).mean()
+                std = close.rolling(20).std()
+                upper = mid + 2 * std
+                lower = mid - 2 * std
+                upper_val = float(upper.iloc[-1])
+                lower_val = float(lower.iloc[-1])
+                if last_close > upper_val:
+                    bb_status = "触及上轨（超买）"
+                elif last_close < lower_val:
+                    bb_status = "触及下轨（超卖）"
                 else:
-                    macd_signal = "空头"
+                    bb_status = "中轨附近"
 
             # 综合信号
             signal = "观望"
@@ -97,6 +110,10 @@ for i, (name, interval) in enumerate(timeframes.items()):
             if macd_signal == "多头":
                 score += 1
             elif macd_signal == "空头":
+                score -= 1
+            if "超卖" in bb_status:
+                score += 1
+            elif "超买" in bb_status:
                 score -= 1
 
             if score >= 2:
@@ -119,15 +136,15 @@ for i, (name, interval) in enumerate(timeframes.items()):
             st.caption(f"最新时间：{df.index[-1]}")
             st.metric("最新价格", f"{last_close:.2f}")
 
-            col1, col2, col3, col4 = st.columns(4)
+            col1, col2, col3 = st.columns(3)
             with col1:
                 st.write(f"**信号**：{signal}")
+                st.write(f"**趋势**：{trend}")
             with col2:
                 st.write(f"**RSI**：{rsi_value:.1f}" if rsi_value else "**RSI**：-")
-            with col3:
                 st.write(f"**MACD**：{macd_signal}")
-            with col4:
-                st.write(f"**趋势**：{trend}")
+            with col3:
+                st.write(f"**布林带**：{bb_status}")
 
             st.line_chart(close)
 
