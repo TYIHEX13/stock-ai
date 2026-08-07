@@ -6,7 +6,6 @@ from datetime import datetime
 st.set_page_config(page_title="多品种多周期分析", layout="wide")
 st.title("多品种多时间周期分析 + 模拟盘")
 
-# 初始化模拟盘记录
 if "trades" not in st.session_state:
     st.session_state.trades = []
 
@@ -92,23 +91,15 @@ for i, (name, interval) in enumerate(timeframes.items()):
             score = 0
             if len(close) >= 20:
                 ma20_val = float(ma20.iloc[-1])
-                if last_close > ma20_val:
-                    score += 1
-                else:
-                    score -= 1
+                if last_close > ma20_val: score += 1
+                else: score -= 1
             if rsi_value is not None:
-                if rsi_value < 30:
-                    score += 1
-                elif rsi_value > 70:
-                    score -= 1
-            if macd_signal == "多头":
-                score += 1
-            elif macd_signal == "空头":
-                score -= 1
-            if "超卖" in bb_status:
-                score += 1
-            elif "超买" in bb_status:
-                score -= 1
+                if rsi_value < 30: score += 1
+                elif rsi_value > 70: score -= 1
+            if macd_signal == "多头": score += 1
+            elif macd_signal == "空头": score -= 1
+            if "超卖" in bb_status: score += 1
+            elif "超买" in bb_status: score -= 1
 
             signal = "观望"
             if score >= 2:
@@ -145,10 +136,9 @@ for i, (name, interval) in enumerate(timeframes.items()):
         except Exception as e:
             st.error(f"{name} 出错：{e}")
 
-# 共振汇总
+# 共振
 st.divider()
 st.subheader("多周期共振与操作建议")
-
 col_a, col_b = st.columns(2)
 with col_a:
     st.metric("看多周期数", bull_count)
@@ -166,7 +156,21 @@ elif bear_count >= 4:
 else:
     st.warning("【信号分歧】建议观望")
 
-# ========== 模拟盘 ==========
+# 重要数据提醒
+st.divider()
+st.subheader("重要数据提醒（仅供参考）")
+st.write("""
+**常见重要数据（需自行确认准确时间）：**
+- 非农就业报告（NFP）：通常每月第一个周五
+- CPI（通胀数据）：每月中旬
+- 美联储利率决议：不定期
+- GDP、初请失业金等
+
+**提示：** 数据公布前后波动可能加大，建议谨慎操作或观望。
+免费工具无法准确预测数据结果和影响方向。
+""")
+
+# 模拟盘
 st.divider()
 st.subheader("模拟盘记录")
 
@@ -178,7 +182,6 @@ with st.form("trade_form"):
         entry_price = st.number_input("开仓价格", min_value=0.0, value=0.0, step=0.1)
     with col3:
         exit_price = st.number_input("平仓价格（没平仓填0）", min_value=0.0, value=0.0, step=0.1)
-    
     note = st.text_input("备注（可选）")
     submitted = st.form_submit_button("添加记录")
 
@@ -189,7 +192,6 @@ with st.form("trade_form"):
                 profit = exit_price - entry_price
             else:
                 profit = entry_price - exit_price
-        
         st.session_state.trades.append({
             "时间": datetime.now().strftime("%m-%d %H:%M"),
             "品种": selected_name,
@@ -202,16 +204,14 @@ with st.form("trade_form"):
         st.success("已添加记录")
 
 if st.session_state.trades:
-    st.write("历史记录：")
     st.dataframe(pd.DataFrame(st.session_state.trades))
-    
     closed = [t for t in st.session_state.trades if t["盈亏"] != "-"]
     if closed:
         total_profit = sum([t["盈亏"] for t in closed])
         win = len([t for t in closed if t["盈亏"] > 0])
         st.metric("总盈亏", f"{total_profit:.2f}")
-        st.write(f"已平仓次数：{len(closed)}，盈利次数：{win}")
+        st.write(f"已平仓：{len(closed)} 次，盈利：{win} 次")
 else:
     st.info("暂无模拟交易记录")
 
-st.caption(f"更新时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | 免费数据，仅供参考")
+st.caption(f"更新时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | 免费数据，仅供参考，不构成投资建议")
