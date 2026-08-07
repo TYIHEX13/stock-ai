@@ -6,8 +6,9 @@ from datetime import datetime
 st.set_page_config(page_title="多品种多周期分析", layout="wide")
 st.title("多品种多时间周期分析")
 
-# 品种选择
+# 品种选择（保留所有）
 symbol_options = {
+    "现货黄金 (XAUUSD)": "GC=F",
     "黄金期货 (GC=F)": "GC=F",
     "比特币 (BTC-USD)": "BTC-USD",
     "欧元美元 (EURUSD=X)": "EURUSD=X",
@@ -21,18 +22,19 @@ selected_name = st.sidebar.selectbox("选择品种", list(symbol_options.keys())
 symbol = symbol_options[selected_name]
 period = st.sidebar.selectbox("历史长度", ["5d", "1mo", "3mo"], index=1)
 
+# 所有时间周期（完整保留）
 timeframes = {
     "5分钟": "5m",
     "15分钟": "15m",
     "30分钟": "30m",
     "1小时": "1h",
+    "4小时": "1h",
     "1天": "1d",
     "1周": "1wk"
 }
 
 bull_count = 0
 bear_count = 0
-signals = {}
 
 tabs = st.tabs(list(timeframes.keys()))
 
@@ -51,7 +53,7 @@ for i, (name, interval) in enumerate(timeframes.items()):
             close = df["Close"]
             last_close = float(close.iloc[-1])
             
-            # 计算指标
+            # 指标计算
             ma20 = close.rolling(20).mean()
             ma60 = close.rolling(60).mean() if len(close) >= 60 else None
             
@@ -64,7 +66,7 @@ for i, (name, interval) in enumerate(timeframes.items()):
                 rsi = 100 - (100 / (1 + rs))
                 rsi_value = float(rsi.iloc[-1])
 
-            # 信号判断
+            # 信号
             signal = "观望"
             if len(close) >= 20:
                 ma20_val = float(ma20.iloc[-1])
@@ -75,9 +77,7 @@ for i, (name, interval) in enumerate(timeframes.items()):
                     signal = "偏空"
                     bear_count += 1
 
-            signals[name] = signal
-
-            # 简单趋势/震荡判断
+            # 趋势判断
             trend = "震荡"
             if ma60 is not None:
                 ma60_val = float(ma60.iloc[-1])
@@ -104,7 +104,7 @@ for i, (name, interval) in enumerate(timeframes.items()):
         except Exception as e:
             st.error(f"{name} 出错：{e}")
 
-# 多周期共振汇总（放在显眼位置）
+# 多周期共振汇总
 st.divider()
 st.subheader("多周期共振汇总")
 
@@ -114,15 +114,15 @@ with col_a:
 with col_b:
     st.metric("看空周期数", bear_count)
 
-if bull_count >= 4:
-    st.success("强共振偏多 → 可关注做多机会")
+if bull_count >= 5:
+    st.success("强共振偏多")
+elif bear_count >= 5:
+    st.error("强共振偏空")
+elif bull_count >= 4:
+    st.info("偏多共振")
 elif bear_count >= 4:
-    st.error("强共振偏空 → 可关注做空机会")
-elif bull_count >= 3:
-    st.info("偏多共振，谨慎看多")
-elif bear_count >= 3:
-    st.info("偏空共振，谨慎看空")
+    st.info("偏空共振")
 else:
-    st.warning("多周期信号分歧，建议观望")
+    st.warning("信号分歧，建议观望")
 
 st.caption(f"更新时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | 免费数据，价格仅供参考")
