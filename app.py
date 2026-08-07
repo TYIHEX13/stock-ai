@@ -6,7 +6,7 @@ from datetime import datetime
 st.set_page_config(page_title="多品种多周期分析", layout="wide")
 st.title("多品种多时间周期分析")
 
-# 品种选择（保留所有）
+# 品种选择
 symbol_options = {
     "现货黄金 (XAUUSD)": "GC=F",
     "黄金期货 (GC=F)": "GC=F",
@@ -22,13 +22,15 @@ selected_name = st.sidebar.selectbox("选择品种", list(symbol_options.keys())
 symbol = symbol_options[selected_name]
 period = st.sidebar.selectbox("历史长度", ["5d", "1mo", "3mo"], index=1)
 
-# 所有时间周期（完整保留）
+# 完整时间周期（已加入3小时、6小时）
 timeframes = {
     "5分钟": "5m",
     "15分钟": "15m",
     "30分钟": "30m",
     "1小时": "1h",
+    "3小时": "1h",
     "4小时": "1h",
+    "6小时": "1h",
     "1天": "1d",
     "1周": "1wk"
 }
@@ -114,9 +116,9 @@ with col_a:
 with col_b:
     st.metric("看空周期数", bear_count)
 
-if bull_count >= 5:
+if bull_count >= 6:
     st.success("强共振偏多")
-elif bear_count >= 5:
+elif bear_count >= 6:
     st.error("强共振偏空")
 elif bull_count >= 4:
     st.info("偏多共振")
